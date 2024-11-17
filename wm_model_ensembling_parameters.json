@@ -1,0 +1,102 @@
+{
+    "input": {
+        "input_dataset": {
+            "input_image_size": 300,
+            "annotation_format": "coco_detection_json",
+            "convert_pascal_voc_to_coco_format": false,
+            "input_dataset_path": "white-mold-dataset/results-pre-processed-images/running-0021-15ds-300x300-merged-classes/splitting_by_images/4-balanced-output-dataset"
+        },
+        "experiment": {
+            "id": "exp-teste",
+            "description": "999 - Tests."
+        },
+        "inference": {
+            "weights_folder": "/home/lovelace/proj/proj939/rubenscp/research/white-mold-inference-weights/exp-007-training-300x300-merging-classes-balanced-image-all-classes",
+            "weights_filename": "detr-resnet-50-running-0316-300x300.pth"
+        }
+    },
+    "neural_network_model": {
+        "pretrained_model_path": "/home/lovelace/proj/proj939/rubenscp/research/white-mold-applications/wm-pretrained-model/detr-resnet-50",
+        "model_name": "detr-resnet-50",
+        "model_cache_dir": "/home/lovelace/proj/proj939/rubenscp/.cache/huggingface/hub",
+        "number_epochs": 300,
+        "not_used_max_steps": 200, 
+        "gradient_clip_val": 0.1, 
+        "batch_size": 32,
+        "patience": 50,
+        "min_delta": 0.001,
+        "resize_of_input_image": 300,
+        "threshold": 0.4,
+        "iou_threshold": 0.3,
+        "non_maximum_suppression": 0.7,
+        "number_workers": 7,
+        "comment_number_of_classes": "consider number of classes plus the background class",
+        "number_of_classes": 6,       
+        "classes": [
+            "__background__", 
+            "Apothecium", 
+            "Imature Sclerotium", 
+            "Mature Sclerotium", 
+            "White Mold", 
+            "Imature Sclerotium and White Mold"
+        ],
+        "classes_short_name": [
+            "__background__",
+            "Apoth", 
+            "Imat Scler", 
+            "Mat Scler", 
+            "White Mold", 
+            "White Mold"
+        ],
+        "is_pre_trained_weights": true,
+        "learning_rate_initial": 0.0001,
+        "learning_rate_final": 0.0001,
+        "learning_rate_backbone": 0.00001,
+        "not_used_gamma": 0.1,
+        "not_used_momentum": 0.9,
+        "weight_decay": 0.0001,
+        "step_size": 3
+    },
+    "processing": {
+        "research_root_folder": "/home/lovelace/proj/proj939/rubenscp/research",
+        "project_name_folder": "white-mold-applications/wm-model-detr",
+        "running_control_filename": "running_control.json",
+        "running_id": "defined during training/test ",
+        "running_id_text": "defined during training/inference ",
+        "image_dataset_folder": "defined during training/test ",
+        "image_dataset_folder_train": "defined during training/test ",
+        "image_dataset_folder_valid": "defined during training/test ",
+        "image_dataset_folder_test": "defined during training/test ",
+        "show_statistics_of_input_dataset": true
+    },
+    "training_results": {
+        "main_folder": "white-mold-results",
+        "model_folder": "defined during training/test",
+        "experiment_folder": "experiment",
+        "action_folder": "training",
+        "running_folder": "defined during training/test",
+        "processing_parameters_folder": "processing-parameters",
+        "pretrained_model_folder": "pretrained-model",
+        "weights_folder": "weights",
+        "weights_base_filename": "",
+        "metrics_folder": "metrics",
+        "log_folder": "log",
+        "log_filename": "wm-model-detr-train",
+        "results_folder": "results"
+    },
+    "test_results": {
+        "main_folder": "white-mold-results",
+        "model_folder": "defined during training/test",
+        "experiment_folder": "experiment",
+        "action_folder": "test",
+        "running_folder": "defined during training/test",
+        "processing_parameters_folder": "processing-parameters",
+        "pretrained_model_folder": "pretrained-model",
+        "weights_folder": "weights",
+        "metrics_folder": "metrics",
+        "inferenced_image_folder": "tested-image",
+        "log_folder": "log",
+        "log_filename": "wm-model-detr-test",
+        "results_folder": "results"
+    }
+}

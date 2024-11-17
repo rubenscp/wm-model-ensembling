@@ -1,0 +1,12 @@
+#PBS -N ensembling_test
+#PBS -q miggpu24h
+#PBS -m abe
+#PBS -e ensembling_test_errors 
+#PBS -o ensembling_test_output
+
+export TRANSFORMERS_OFFLINE=1
+
+module load cuda/12.0.0
+source /home/lovelace/proj/proj939/rubenscp/CENAPAD/miniconda3.sh
+unset CUDA_VISIBLE_DEVICES
+python ~/research/white-mold-applications/wm-model-detr/my-python-modules/manage_ensembling_test.py
