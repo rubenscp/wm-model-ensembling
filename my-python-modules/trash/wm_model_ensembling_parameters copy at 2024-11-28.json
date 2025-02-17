@@ -1,0 +1,217 @@
+{
+    "input": {
+        "input_dataset": {
+            "input_image_size": 300,
+            "annotation_format": "ssd_pascal_voc",
+            "convert_pascal_voc_to_coco_format": false,
+            "input_dataset_path": "white-mold-dataset/results-pre-processed-images/running-0021-15ds-300x300-merged-classes/splitting_by_images/4-balanced-output-dataset"
+        },
+        "experiment": {
+            "id": "exp-0010",
+            "description": "0010 - Applying model ensembling from the previous models for evaluating of this technique performance."
+        }
+    },
+
+    "model_ssd": {
+        "input": {
+            "input_dataset": {
+                "input_image_size": 300,
+                "annotation_format": "ssd_pascal_voc",
+                "input_dataset_path": "white-mold-dataset/results-pre-processed-images/running-0021-15ds-300x300-merged-classes/splitting_by_images/4-balanced-output-dataset"
+            },
+            "inference": {
+                "weights_folder": "/home/lovelace/proj/proj939/rubenscp/research/white-mold-inference-weights/exp-006-training-300x300-merging-classes-balanced-image-all-classes",
+                "weights_filename": "ssd300_vgg16-running-0631-300x300-best_model.pth"
+            }
+        }, 
+        "neural_network_model": {
+            "model_name": "ssd300_vgg16",
+            "threshold": 0.4,
+            "iou_threshold": 0.3,
+            "non_maximum_suppression": 0.7   
+        }
+    },
+
+    "model_faster_rcnn": {
+        "input": {
+            "input_dataset": {
+                "input_image_size": 300,
+                "annotation_format": "faster_rcnn",
+                "input_dataset_path": "white-mold-dataset/results-pre-processed-images/running-0021-15ds-300x300-merged-classes/splitting_by_images/4-balanced-output-dataset"
+            },
+            "inference": {
+                "weights_folder": "/home/lovelace/proj/proj939/rubenscp/research/white-mold-inference-weights/exp-006-training-300x300-merging-classes-balanced-image-all-classes",
+                "weights_filename": "faster-rcnn-resnet-50-fpn-running-0631-300x300.pth"    
+
+            }
+        }, 
+        "neural_network_model": {
+            "model_name": "faster-rcnn-resnet-50-fpn",
+            "threshold": 0.4,
+            "iou_threshold": 0.3,
+            "non_maximum_suppression": 0.7,
+            "batch_size": 16,
+            "number_workers": 2
+        }
+    },
+
+    "model_yolov8": {
+        "input": {
+            "input_dataset": {
+                "input_image_size": 300,
+                "annotation_format": "yolov8",
+                "input_dataset_path": "white-mold-dataset/results-pre-processed-images/running-0021-15ds-300x300-merged-classes/splitting_by_images/4-balanced-output-dataset"
+            },
+            "inference": {
+                "weights_folder": "/home/lovelace/proj/proj939/rubenscp/research/white-mold-inference-weights/exp-006-training-300x300-merging-classes-balanced-image-all-classes",
+                "weights_filename": "yolov8s.pt-running-0635-300x300.pt"
+            }
+        }, 
+        "neural_network_model": {
+            "model_name": "yolov8s.pt",
+            "threshold": 0.4,
+            "iou_threshold": 0.3,
+            "non_maximum_suppression": 0.7   
+        },
+        "processing": {
+            "yolo_yaml_filename_test": "white_mold_yolov8_test.yaml"
+        }
+    },
+
+    "model_yolov9": {
+        "input": {
+            "input_dataset": {
+                "input_image_size": 300,
+                "annotation_format": "yolov8",
+                "input_dataset_path": "white-mold-dataset/results-pre-processed-images/running-0021-15ds-300x300-merged-classes/splitting_by_images/4-balanced-output-dataset"
+            },
+            "inference": {
+                "weights_folder": "/home/lovelace/proj/proj939/rubenscp/research/white-mold-inference-weights/exp-006-training-300x300-merging-classes-balanced-image-all-classes",
+                "weights_filename": "yolov9c.pt-running-0640-300x300.pt"
+            }
+        }, 
+        "neural_network_model": {
+            "model_name": "yolov9c.pt",
+            "threshold": 0.4,
+            "iou_threshold": 0.3,
+            "non_maximum_suppression": 0.7   
+        },
+        "processing": {
+            "yolo_yaml_filename_test": "white_mold_yolov9_test.yaml"
+        }
+    },
+    "model_yolov10": {
+        "input": {
+            "input_dataset": {
+                "input_image_size": 300,
+                "annotation_format": "yolov8",
+                "input_dataset_path": "white-mold-dataset/results-pre-processed-images/running-0021-15ds-300x300-merged-classes/splitting_by_images/4-balanced-output-dataset"
+            },
+            "inference": {
+                "weights_folder": "/home/lovelace/proj/proj939/rubenscp/research/white-mold-inference-weights/exp-008-training-300x300-merging-classes-balanced-image-all-classes",
+                "weights_filename": "yolov10x.pt-running-0053-300x300.pt"
+            }
+        }, 
+        "neural_network_model": {
+            "model_name": "yolov10x.pt",
+            "threshold": 0.4,
+            "iou_threshold": 0.3,
+            "non_maximum_suppression": 0.7   
+        },
+        "processing": {
+            "yolo_yaml_filename_test": "white_mold_yolov10_test.yaml"
+       }
+    },
+
+    "neural_network_model": {
+        "NOT_pretrained_model_path": "/home/lovelace/proj/proj939/rubenscp/research/white-mold-applications/wm-pretrained-model/xxx-detr-resnet-50",
+        "model_name": "model-ensembling",
+        "model_cache_dir": "/home/lovelace/proj/proj939/rubenscp/.cache/huggingface/hub",
+        "NOT_number_epochs": 300,
+        "NOT_not_used_max_steps": 200, 
+        "NOT_gradient_clip_val": 0.1, 
+        "BOT_batch_size": 32,
+        "BOT_patience": 50,
+        "NOT_min_delta": 0.001,
+        "resize_of_input_image": 300,
+        "threshold": -1,
+        "iou_threshold": 0.5,
+        "NOT_iou_threshold_for_nms": -1,
+        "non_maximum_suppression": 0.1,
+        "number_workers": 7,
+        "comment_number_of_classes": "consider number of classes plus the background class",
+        "number_of_classes": 6,       
+        "classes": [
+            "__background__", 
+            "Apothecium", 
+            "Imature Sclerotium", 
+            "Mature Sclerotium", 
+            "White Mold", 
+            "Imature Sclerotium and White Mold",            
+            "class 6", "class 7", "class 8", "class 9", "class 10",
+            "class 11", "class 12", "class 13", "class 14", "class 15", "class 16", "class 17", "class 18", "class 19", "class 20",
+            "class 21", "class 22", "class 23", "class 24", "class 25", "class 26", "class 27", "class 28", "class 29", "class 30",
+            "class 31", "class 32", "class 33", "class 34", "class 35", "class 36", "class 37", "class 38", "class 39", "class 40",
+            "class 41", "class 42", "class 43", "class 44", "class 45", "class 46", "class 47", "class 48", "class 49", "class 50",
+            "class 51", "class 52", "class 53", "class 54", "class 55", "class 56", "class 57", "class 58", "class 59", "class 60",
+            "class 61", "class 62", "class 63", "class 64", "class 65", "class 66", "class 67", "class 68", "class 69", "class 70",
+            "class 71", "class 72", "class 73", "class 74", "class 75", "class 76", "class 77", "class 78", "class 79", "class 80",
+            "class 81", "class 82", "class 83", "class 84", "class 85", "class 86", "class 87", "class 88", "class 89", "class 90"         
+        ],
+        "classes_short_name": [
+            "__background__",
+            "Apoth", 
+            "Imat Scler", 
+            "Mat Scler", 
+            "White Mold", 
+            "White Mold",
+            "class 6", "class 7", "class 8", "class 9", "class 10",
+            "class 11", "class 12", "class 13", "class 14", "class 15", "class 16", "class 17", "class 18", "class 19", "class 20",
+            "class 21", "class 22", "class 23", "class 24", "class 25", "class 26", "class 27", "class 28", "class 29", "class 30",
+            "class 31", "class 32", "class 33", "class 34", "class 35", "class 36", "class 37", "class 38", "class 39", "class 40",
+            "class 41", "class 42", "class 43", "class 44", "class 45", "class 46", "class 47", "class 48", "class 49", "class 50",
+            "class 51", "class 52", "class 53", "class 54", "class 55", "class 56", "class 57", "class 58", "class 59", "class 60",
+            "class 61", "class 62", "class 63", "class 64", "class 65", "class 66", "class 67", "class 68", "class 69", "class 70",
+            "class 71", "class 72", "class 73", "class 74", "class 75", "class 76", "class 77", "class 78", "class 79", "class 80",
+            "class 81", "class 82", "class 83", "class 84", "class 85", "class 86", "class 87", "class 88", "class 89", "class 90"         
+        ],
+        "is_pre_trained_weights": true,
+        "learning_rate_initial": 0.0001,
+        "learning_rate_final": 0.0001,
+        "learning_rate_backbone": 0.00001,
+        "not_used_gamma": 0.1,
+        "not_used_momentum": 0.9,
+        "weight_decay": 0.0001,
+        "step_size": 3
+    },
+    "processing": {
+        "research_root_folder": "/home/lovelace/proj/proj939/rubenscp/research",
+        "project_name_folder": "white-mold-applications/wm-model-ensembling",
+        "running_control_filename": "running_control.json",
+        "running_id": "defined during training/test ",
+        "running_id_text": "defined during training/inference ",
+        "image_dataset_folder": "defined during training/test ",
+        "image_dataset_folder_train": "defined during training/test ",
+        "image_dataset_folder_valid": "defined during training/test ",
+        "image_dataset_folder_test": "defined during training/test ",
+        "show_statistics_of_input_dataset": true
+    },
+    "test_results": {
+        "main_folder": "white-mold-results",
+        "model_folder": "defined during training/test",
+        "experiment_folder": "experiment",
+        "action_folder": "test",
+        "running_folder": "defined during training/test",
+        "processing_parameters_folder": "processing-parameters",
+        "pretrained_model_folder": "pretrained-model",
+        "weights_folder": "weights",
+        "metrics_folder": "metrics",
+        "inferenced_image_folder": "tested-image",
+        "affirmative_strategy_folder": "ensemble-affirmative",
+        "consensus_strategy_folder": "ensemble-consensus",
+        "unanimous_strategy_folder": "ensemble-unanimous",
+        "log_folder": "log",
+        "log_filename": "wm-model-ensembling-test",
+        "results_folder": "results"
+    }
+}

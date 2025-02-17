@@ -144,7 +144,7 @@ class Metrics:
     def add_image_bounding_box(self, image_name, 
         target_bbox=None, target_label=None, 
         pred_bbox=None, pred_label=None, pred_score=None, 
-        threshold=None, iou_threshold=None, iou=None, status=None):
+        threshold=None, iou_threshold=None, iou=None, status=None, model_name=None):
 
         target_bbox_aux = target_bbox.numpy().squeeze() if torch.is_tensor(target_bbox) else ''
         target_label_aux = target_label.numpy().squeeze() if torch.is_tensor(target_label) else ''
@@ -165,6 +165,7 @@ class Metrics:
         image_bounding_box.append(iou_aux)
         image_bounding_box.append(iou_threshold)
         image_bounding_box.append(status)        
+        image_bounding_box.append(model_name)
         self.images_bounding_boxes.append(image_bounding_box)
 
 
@@ -223,11 +224,12 @@ class Metrics:
                             threshold=threshold, 
                             iou_threshold=iou_threshold, 
                             iou=0,
-                            status='undetected-fn'
+                            status='undetected-fn', 
+                            model_name='',
                         )
             else:
                 for pred in preds:
-                    for p_box, p_label, p_score in zip(pred['boxes'], pred['labels'], pred['scores']):
+                    for index, (p_box, p_label, p_score) in enumerate(zip(pred['boxes'], pred['labels'], pred['scores'])):
                         number_of_bounding_boxes_predicted += 1
                         for target in targets:
                             for t_box, t_label in zip(target['boxes'], target['labels']):
@@ -253,6 +255,15 @@ class Metrics:
                                     self.full_confusion_matrix[t_label, ghost_predictions_index] += 1
                                     status = 'err-pred-fp'
 
+                                # setting model name 
+                                # print(f'pred rubens: {pred}')
+                                if 'model' in pred:
+                                    print(f'rubens pred: {pred}')
+                                    print(f'rubens pred[model]: {pred["model"]}')
+                                    prediction_model_name = pred['model']
+                                else:
+                                    prediction_model_name = ''
+
                                 # adding bounding box to list of statistics
                                 self.add_image_bounding_box(
                                     inferenced_image["image_name"],
@@ -264,7 +275,8 @@ class Metrics:
                                     threshold=threshold,
                                     iou_threshold=iou_threshold, 
                                     iou=iou,
-                                    status=status
+                                    status=status,
+                                    model_name=prediction_model_name,
                                 )
 
 
@@ -274,6 +286,13 @@ class Metrics:
             model_name + '_' + running_id_text + '_images_bounding_boxes.xlsx'
         )
         self.save_inferenced_images(path_and_filename)
+
+        # summarizing predicted detections by model name 
+        path_and_filename = os.path.join(
+            metrics_folder,
+            model_name + '_' + running_id_text + '_summarized_images_bounding_boxes.xlsx'
+        )
+        self.summarize_inferenced_images(path_and_filename)
 
         # split tested images according status of confusion matrix 
         self.split_tested_images(tested_folder)
@@ -600,6 +619,8 @@ class Metrics:
             'iou threshold',
             'status',
         ]
+        if len(self.images_bounding_boxes[0]) == 11:
+            column_names.append('model name')
 
         # creating dataframe from list 
         df = pd.DataFrame(self.images_bounding_boxes, columns=column_names)
@@ -607,6 +628,49 @@ class Metrics:
         # writing excel file from dataframe
         df.to_excel(path_and_filename, sheet_name='bounding_boxes', index=False)
 
+
+    # summarize predicted detections per model name  
+    def summarize_inferenced_images(self, path_and_filename):
+
+        # initializing list 
+        summarized_inferenced_images_by_model = {}
+
+        # processing inferenced predictions
+        for image_bounding_box in self.images_bounding_boxes:
+            # get model name
+            model_name = image_bounding_box[10]
+
+            # summarize number of predicted detections by model name 
+            if (model_name != ''):
+
+                if model_name in summarized_inferenced_images_by_model:
+                    summarized_inferenced_images_by_model[model_name] += 1
+                else:
+                    summarized_inferenced_images_by_model[model_name] = 1
+
+        print(f'summarized_inferenced_images_by_model: {summarized_inferenced_images_by_model}')
+
+        model_names = []
+        for key, value in summarized_inferenced_images_by_model.items():
+            model_names.append([key, value])
+
+        print(f'model_names: {model_names}')
+
+        # just return if there is nothing to record
+        if len(model_names) == 0:
+            return
+
+           # preparing columns name to list
+        column_names = [
+            'Model Name',
+            'Predicted Detections',
+        ]
+
+        # creating dataframe from list 
+        df = pd.DataFrame(model_names, columns=column_names)
+
+        # writing excel file from dataframe
+        df.to_excel(path_and_filename, sheet_name='summarize_bounding_boxes', index=False)
 
     def split_tested_images(self, tested_folder):
 
@@ -628,6 +692,8 @@ class Metrics:
             filename = filename + '_predicted.' + extension
             input_path = tested_folder
             output_path = os.path.join(tested_folder, image_bounding_box[9])
+            path_and_filename = os.path.join(input_path, filename)
+            # if os.path.isfile(path_and_filename):
             Utils.copy_file_same_name(filename, input_path, output_path)
 
     # def split_tested_images(self, tested_folder):

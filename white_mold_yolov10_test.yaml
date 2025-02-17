@@ -1,0 +1,11 @@
+White Mold Yaml Setup:
+
+path: /home/lovelace/proj/proj939/rubenscp/research/white-mold-dataset/results-pre-processed-images/running-0021-15ds-300x300-merged-classes/splitting_by_images/4-balanced-output-dataset/yolov8/300x300
+
+train: train/images
+val: test/images
+test: test/images
+
+# class names
+nc: 6
+names: ['__background__', 'Apothecium', 'Imature Sclerotium', 'Mature Sclerotium', 'White Mold', 'Imature Sclerotium and White Mold']

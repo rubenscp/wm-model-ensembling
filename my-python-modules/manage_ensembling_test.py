@@ -9,20 +9,20 @@ Advisors:
     Prof. Dr. Murillo Lobo Jr. - coadvisor at Embrapa Rice and Beans
 Date: 17/11/2024
 Version: 1.0
-This implementation is based on this notebook: 
+This implementation is based on:
+- Paper: Ensemble methods for Object detection - https://ebooks.iospress.nl/volumearticle/55202 
+- Github: https://github.com/ancasag/ensembleObjectDetection/tree/master 
+
+Note:
+- Non maximum suppression: iou_threshold (float) - discards all overlapping boxes with IoU > iou_threshold
+
 """
 
 # Basic python and ML Libraries
 import os
 from datetime import datetime
 import shutil
-
-# torchvision libraries
-import torch
-from transformers import DetrImageProcessor
-
-
-# these are the helper libraries imported.
+import copy
 
 # Importing python modules
 from common.manage_log import *
@@ -30,9 +30,14 @@ from common.tasks import Tasks
 from common.entity.ImageAnnotation import ImageAnnotation
 from common.entity.AnnotationsStatistic import AnnotationsStatistic
 
-# from model import *
-# from dataset import *
-# from inference import * 
+from manage_ssd_test import * 
+from manage_faster_rcnn_test import * 
+from manage_yolo_test import * 
+from manage_detr_test import * 
+from manage_transunet_test import *
+
+from model_ensemble.ensemble import * 
+
 
 # ###########################################
 # Constants
@@ -60,11 +65,11 @@ def main():
     processing_tasks = Tasks()
 
     # setting dictionary initial parameters for processing
-    full_path_project = '/home/lovelace/proj/proj939/rubenscp/research/white-mold-applications/wm-model-detr'
+    full_path_project = '/home/lovelace/proj/proj939/rubenscp/research/white-mold-applications/wm-model-ensembling'
 
     # getting application parameters 
     processing_tasks.start_task('Getting application parameters')
-    parameters_filename = 'wm_model_detr_parameters.json'
+    parameters_filename = 'wm_model_ensembling_parameters.json'
     parameters = get_parameters(full_path_project, parameters_filename)
     processing_tasks.finish_task('Getting application parameters')
 
@@ -92,7 +97,7 @@ def main():
     processing_tasks.finish_task('Creating log file')
 
     logging_info('White Mold Research')
-    logging_info('Inference of the model DETR' + LINE_FEED)
+    logging_info('Inference of the model Ensembling' + LINE_FEED)
 
     logging_info(f'')
     logging_info(f'>> Set input image folders')
@@ -117,56 +122,163 @@ def main():
     save_processing_parameters(parameters_filename, parameters)
     processing_tasks.finish_task('Saving processing parameters')
    
-    # copying pre-trained files 
-    processing_tasks.start_task('Copying pre-trained files')
-    copy_pretrained_model_files(parameters)
-    processing_tasks.finish_task('Copying pre-trained files')     
+    original_parameters = copy.deepcopy(parameters)
 
-    # copying weights file produced by training step 
-    processing_tasks.start_task('Copying weights file used in inference')
-    copy_weights_file(parameters)
-    processing_tasks.finish_task('Copying weights file used in inference')
+    # initializing predictions dictionaries 
+    ssd_predictions = {}
+    faster_rcnn_predictions = {}
+    yolov8_predictions = {}
+    yolov9_predictions = {}
+    yolov10_predictions = {}
+    detr_predictions = {}
+    trans_unet_predictions = {}
+    
+    # inference all test image with trained SSD model
+    if parameters['input']['model_to_ensemble']['ssd'][1]:
+        model_to_ensemble = parameters['input']['model_to_ensemble']['ssd'][0]
+        processing_tasks.start_task(f'Inferencing test image with trained {model_to_ensemble} model')
+        ssd_predictions = model_ssd_inference(parameters, processing_tasks, device)
+        print(f'ssd_predictions - len: {len(ssd_predictions)}')
+        print(f'ssd_predictions: {ssd_predictions}')
+        processing_tasks.finish_task(f'Inferencing test image with trained {model_to_ensemble} model')
 
-    # loading datasets and dataloaders of image dataset for processing
-    processing_tasks.start_task('Loading test dataset of image dataset')
-    dataset_type = 'test'
-    dataset_test, dataset_test_original_boxes, processor = get_dataset(parameters, device, dataset_type)
-    processing_tasks.finish_task('Loading test dataset of image dataset')
+    # inference all test image with trained Faster RCNN model 
+    if parameters['input']['model_to_ensemble']['faster_rcnn'][1]:
+        model_to_ensemble = parameters['input']['model_to_ensemble']['faster_rcnn'][0]
+        processing_tasks.start_task(f'Inferencing test image with trained {model_to_ensemble} model')
+        faster_rcnn_predictions = model_faster_rcnn_inference(parameters, processing_tasks, device)
+        print(f'faster_rcnn_predictions - len: {len(faster_rcnn_predictions)}')
+        print(f'faster_rcnn_predictions: {faster_rcnn_predictions}')
+        processing_tasks.finish_task(f'Inferencing test image with trained {model_to_ensemble} model')
 
-    # creating neural network model 
-    processing_tasks.start_task('Creating neural network model')
-    model = get_neural_network_model(parameters, device)
-    processing_tasks.finish_task('Creating neural network model')
+    # inference all test image with trained YOLO series model 
+    if parameters['input']['model_to_ensemble']['yolov8'][1]:
+        model_to_ensemble = parameters['input']['model_to_ensemble']['yolov8'][0]
+        processing_tasks.start_task(f'Inferencing test image with trained {model_to_ensemble} model')
+        yolov8_predictions = model_yolo_inference(parameters, processing_tasks, device, model_to_ensemble)
+        print(f'yolov8_predictions - len: {len(yolov8_predictions)}')
+        print(f'yolov8_predictions: {yolov8_predictions}')
+        processing_tasks.finish_task(f'Inferencing test image with trained {model_to_ensemble} model')
 
-    # getting statistics of input dataset 
-    if parameters['processing']['show_statistics_of_input_dataset']:
-        processing_tasks.start_task('Getting statistics of input dataset')
-        annotation_statistics = get_input_dataset_statistics(parameters)
-        show_input_dataset_statistics(parameters, annotation_statistics)
-        processing_tasks.finish_task('Getting statistics of input dataset')    
+    if parameters['input']['model_to_ensemble']['yolov9'][1]:
+        model_to_ensemble = parameters['input']['model_to_ensemble']['yolov9'][0]
+        processing_tasks.start_task(f'Inferencing test image with trained {model_to_ensemble} model')
+        yolov9_predictions = model_yolo_inference(parameters, processing_tasks, device, model_to_ensemble)
+        print(f'yolov9_predictions - len: {len(yolov9_predictions)}')
+        print(f'yolov9_predictions: {yolov9_predictions}')
+        processing_tasks.finish_task(f'Inferencing test image with trained {model_to_ensemble} model')
 
-    # inference the neural netowrk model
-    processing_tasks.start_task('Running prediction on the test images dataset')
-    inference_detr_model(parameters, device, model, processor, dataset_test, dataset_test_original_boxes)
-    processing_tasks.finish_task('Running prediction on the test images dataset')
+    if parameters['input']['model_to_ensemble']['yolov10'][1]:
+        model_to_ensemble = parameters['input']['model_to_ensemble']['yolov10'][0]
+        processing_tasks.start_task(f'Inferencing test image with trained {model_to_ensemble} model')
+        yolov10_predictions = model_yolo_inference(parameters, processing_tasks, device, model_to_ensemble)
+        print(f'yolov10_predictions - len: {len(yolov10_predictions)}')
+        print(f'yolov10_predictions: {yolov10_predictions}')
+        processing_tasks.finish_task(f'Inferencing test image with trained {model_to_ensemble} model')
 
-    # showing input dataset statistics
+    if parameters['input']['model_to_ensemble']['detr'][1]:
+        model_to_ensemble = parameters['input']['model_to_ensemble']['detr'][0]
+        processing_tasks.start_task(f'Inferencing test image with trained {model_to_ensemble} model')
+        detr_predictions = model_detr_inference(parameters, processing_tasks, device)
+        print(f'detr_predictions - len: {len(detr_predictions)}')
+        print(f'detr_predictions: {detr_predictions}')
+        processing_tasks.finish_task(f'Inferencing test image with trained {model_to_ensemble} model')
+
+    if parameters['input']['model_to_ensemble']['trans_unet'][1]:
+        model_to_ensemble = parameters['input']['model_to_ensemble']['trans_unet'][0]
+        processing_tasks.start_task(f'Inferencing test image with trained {model_to_ensemble} model')
+        trans_unet_predictions = model_trans_unet_inference(parameters, processing_tasks, device)
+        print(f'trans_unet_predictions - len: {len(trans_unet_predictions)}')
+        print(f'trans_unet_predictions: {trans_unet_predictions}')
+        processing_tasks.finish_task(f'Inferencing test image with trained {model_to_ensemble} model')
+
+    print(f'')
+    print(f'======================================================')
+    print(f'')
+    print(f'ssd_predictions         - len: {len(ssd_predictions)}')
+    print(f'faster_rcnn_predictions - len: {len(faster_rcnn_predictions)}')
+    print(f'yolov8_predictions      - len: {len(yolov8_predictions)}')
+    print(f'yolov9_predictions      - len: {len(yolov9_predictions)}')
+    print(f'yolov10_predictions     - len: {len(yolov10_predictions)}')
+    print(f'detr_predictions        - len: {len(detr_predictions)}')
+    print(f'trans_unet_predictions  - len: {len(trans_unet_predictions)}')
+    print(f'======================================================')
+
+    logging_info(f'')
+    logging_info(f'Summary of Previous Model Predictions')    
+    logging_info(f'')
+    logging_info(f'ssd_predictions         - len: {len(ssd_predictions)}')
+    logging_info(f'faster_rcnn_predictions - len: {len(faster_rcnn_predictions)}')
+    logging_info(f'yolov8_predictions      - len: {len(yolov8_predictions)}')
+    logging_info(f'yolov9_predictions      - len: {len(yolov9_predictions)}')
+    logging_info(f'yolov10_predictions     - len: {len(yolov10_predictions)}')
+    logging_info(f'detr_predictions        - len: {len(detr_predictions)}')
+    logging_info(f'trans_unet_predictions  - len: {len(trans_unet_predictions)}')
+    logging_info(f'')
+
+    # build all predictions for ensembling of the predictions
+    all_predictions = {}
+    all_predictions[parameters['input']['model_to_ensemble']['ssd'][0]] = ssd_predictions
+    all_predictions[parameters['input']['model_to_ensemble']['faster_rcnn'][0]] = faster_rcnn_predictions
+    all_predictions[parameters['input']['model_to_ensemble']['yolov8'][0]] = yolov8_predictions
+    all_predictions[parameters['input']['model_to_ensemble']['yolov9'][0]] = yolov9_predictions
+    all_predictions[parameters['input']['model_to_ensemble']['yolov10'][0]] = yolov10_predictions
+    all_predictions[parameters['input']['model_to_ensemble']['detr'][0]] = detr_predictions
+    all_predictions[parameters['input']['model_to_ensemble']['trans_unet'][0]] = trans_unet_predictions
+
+    # run ensemble of the all predictions
+    processing_tasks.start_task(f'Ensembling inference results of the previous models')
+    run_ensemble_test_images(original_parameters, all_predictions)
+    processing_tasks.finish_task(f'Ensembling inference results of the previous models')
+    
+    # # copying pre-trained files
+    # processing_tasks.start_task('Copying pre-trained files')
+    # copy_pretrained_model_files(parameters)
+    # processing_tasks.finish_task('Copying pre-trained files')     
+
+    # # copying weights file produced by training step 
+    # # processing_tasks.start_task('Copying weights file used in inference')
+    # # copy_weights_file(parameters)
+    # # processing_tasks.finish_task('Copying weights file used in inference')
+
+    # # loading datasets and dataloaders of image dataset for processing
+    # processing_tasks.start_task('Loading test dataset of image dataset')
+    # dataset_type = 'test'
+    # dataset_test, dataset_test_original_boxes, processor = get_dataset(parameters, device, dataset_type)
+    # processing_tasks.finish_task('Loading test dataset of image dataset')
+
+    # # creating neural network model 
+    # processing_tasks.start_task('Creating neural network model')
+    # model = get_neural_network_model(parameters, device)
+    # processing_tasks.finish_task('Creating neural network model')
+
+    # # getting statistics of input dataset 
     # if parameters['processing']['show_statistics_of_input_dataset']:
+    #     processing_tasks.start_task('Getting statistics of input dataset')
+    #     annotation_statistics = get_input_dataset_statistics(parameters)
     #     show_input_dataset_statistics(parameters, annotation_statistics)
+    #     processing_tasks.finish_task('Getting statistics of input dataset')    
 
-    # merging all image rsults to just one folder
-    # merge_image_results(parameters)
+    # # inference the neural netowrk model
+    # processing_tasks.start_task('Running prediction on the test images dataset')
+    # inference_detr_model(parameters, device, model, processor, dataset_test, dataset_test_original_boxes)
+    # processing_tasks.finish_task('Running prediction on the test images dataset')
+
+    # # showing input dataset statistics
+    # # if parameters['processing']['show_statistics_of_input_dataset']:
+    # #     show_input_dataset_statistics(parameters, annotation_statistics)
+
+    # # merging all image rsults to just one folder
+    # # merge_image_results(parameters)
 
     # finishing model training 
     logging_info('')
-    logging_info('Finished the test of the model DETR' + LINE_FEED)
+    logging_info('Finished the test of the model Ensembling' + LINE_FEED)
+    print('Finished the test of the model Ensembling')
 
     # printing tasks summary 
     processing_tasks.finish_processing()
     logging_info(processing_tasks.to_string())
-
-    # copying processing files to log folder 
-    # copy_processing_files_to_log(parameters)
 
 
 # ###########################################
@@ -329,6 +441,27 @@ def set_result_folders(parameters):
     parameters['test_results']['inferenced_image_folder'] = inferenced_image_folder
     Utils.create_directory(inferenced_image_folder)
 
+    affirmative_strategy_folder = os.path.join(
+        inferenced_image_folder,
+        parameters['test_results']['affirmative_strategy_folder']
+    )
+    parameters['test_results']['affirmative_strategy_folder'] = affirmative_strategy_folder
+    Utils.create_directory(affirmative_strategy_folder)
+
+    consensus_strategy_folder = os.path.join(
+        inferenced_image_folder,
+        parameters['test_results']['consensus_strategy_folder']
+    )
+    parameters['test_results']['consensus_strategy_folder'] = consensus_strategy_folder
+    Utils.create_directory(consensus_strategy_folder)
+
+    unanimous_strategy_folder = os.path.join(
+        inferenced_image_folder,
+        parameters['test_results']['unanimous_strategy_folder']
+    )
+    parameters['test_results']['unanimous_strategy_folder'] = unanimous_strategy_folder
+    Utils.create_directory(unanimous_strategy_folder)
+
     log_folder = os.path.join(
         running_folder,
         parameters['test_results']['log_folder']
@@ -342,26 +475,6 @@ def set_result_folders(parameters):
     )
     parameters['test_results']['results_folder'] = results_folder
     Utils.create_directory(results_folder)
-
-# def create_yaml_file_for_ultralytics(parameters):
-
-#     # preparing parameters 
-#     yolo_v8_yaml_filename = parameters['processing']['yolo_v8_yaml_filename_test']
-#     path_and_filename_white_mold_yaml = os.path.join(
-#         parameters['processing']['research_root_folder'],
-#         parameters['processing']['project_name_folder'],
-#         yolo_v8_yaml_filename
-#     )
-#     image_dataset_folder = parameters['processing']['image_dataset_folder']
-#     number_of_classes = parameters['neural_network_model']['number_of_classes']
-#     classes = (parameters['neural_network_model']['classes'])[:(number_of_classes+1)]
-   
-#     # creating yaml file 
-#     create_project_yaml_file_for_test(
-#         path_and_filename_white_mold_yaml,
-#         image_dataset_folder,
-#         classes,    
-#     )
 
 def get_device(parameters):
     '''
@@ -396,6 +509,18 @@ def save_processing_parameters(parameters_filename, parameters):
     Utils.save_text_file(path_and_parameters_filename, \
                         Utils.get_pretty_json(parameters), 
                         NEW_FILE)
+
+
+
+
+
+
+
+
+
+
+
+
 
 def copy_pretrained_model_files(parameters):
     '''
@@ -562,577 +687,6 @@ def inference_detr_model(parameters, device, model, processor, dataset_test, dat
     '''
     inference_detr_model_with_dataset_test(parameters, device, model, processor, dataset_test, dataset_test_original_boxes)
 
-
-# def inference_yolo_model(parameters, device, model, dataset_test):
-#     '''
-#     Execute inference of the neural network model
-#     Confusion matrix of YOLOv8:
-#     - https://medium.com/@a0922/confusion-matrix-of-yolov8-97fd7ff0074e
-#     '''
-
-#     logging_info(f'')
-#     logging_info(f'Testing images using my class Metrics')
-#     logging_info(f'')
-
-#     # getting classes 
-#     classes =  parameters['neural_network_model']['classes']
-
-#     # Run batched inference on a list of images   
-#     image_dataset_folder_test_images = os.path.join(
-#         parameters['processing']['image_dataset_folder_test'],
-#         'images',
-#     )
-#     image_dataset_folder_test_labels = os.path.join(
-#         parameters['processing']['image_dataset_folder_test'],
-#         'labels',
-#     )
-#     logging_info(f'Test image dataset folder: {image_dataset_folder_test_images}')
-#     logging_info(f'')
-
-#     # get list of all test images for inference 
-#     test_images = Utils.get_files_with_extensions(image_dataset_folder_test_images, '.jpg')
-#     test_images_with_path = []
-#     for test_image in test_images:
-#         test_image = os.path.join(
-#             image_dataset_folder_test_images,
-#             test_image
-#         )
-#         test_images_with_path.append(test_image)
-    
-#     data_file_yaml = os.path.join(
-#         parameters['processing']['research_root_folder'],
-#         parameters['processing']['project_name_folder'],
-#         parameters['processing']['yolo_v8_yaml_filename_test']
-#     )
-
-#     # creating metric object     
-#     inference_metric = Metrics(
-#         model=parameters['neural_network_model']['model_name'],
-#         number_of_classes=parameters['neural_network_model']['number_of_classes'],
-#     )
-
-#     # logging_info(f'len test_image #{len(test_images_with_path)}')
-
-#     count = 0    
-#     for test_image in test_images_with_path:
-#         count += 1
-#         results = model.predict(
-#             data=data_file_yaml, 
-#             source=test_image, 
-#             imgsz=parameters['input']['input_dataset']['input_image_size'],
-#             project=parameters['test_results']['results_folder'],
-#             conf=parameters['neural_network_model']['threshold'],
-#             iou=parameters['neural_network_model']['iou_threshold_for_prediction'],
-#             device=device,
-#             verbose=True,
-#             show=False,
-#             save=True,
-#             save_conf=True,
-#             plots=True,
-#         )
-
-#         # extracting parts of path and image filename 
-#         path, filename_with_extension, filename, extension = Utils.get_filename(test_image)
-
-#         # setting the annotation filename 
-#         path_and_filename_yolo_annotation = os.path.join(
-#             image_dataset_folder_test_labels, 
-#             filename + '.txt'
-#             )
-
-#         # logging_info(f'-'*70)
-#         logging_info(f'Test image #{count} {filename_with_extension}')
-#         # logging_info(f'test_label #{count} {path_and_filename_yolo_annotation}')
-
-#         # getting all annotations of the image 
-#         image_annotation = ImageAnnotation()
-#         height = width = parameters['input']['input_dataset']['input_image_size']
-#         image_annotation.get_annotation_file_in_yolo_v5_format(
-#             path_and_filename_yolo_annotation, classes, height, width
-#         )
-#         # logging_info(f'image_annotation: {image_annotation.to_string()}')
-
-#         # getting target bounding boxes 
-#         targets = image_annotation.get_tensor_target(classes)
-#         # logging_info(f'target annotated: {targets}')
-
-#         # setting target and predicted bounding boxes for metrics 
-#         # new_targets = []
-#         # item_target = {
-#         #     "boxes": target['boxes'],
-#         #     "labels": target['labels']
-#         #     }
-#         # new_targets.append(item_target)
-
-#         new_predicteds = []
-#         for result in results:
-#             result = result.to('cpu')
-#             for box in result.boxes:    
-#                 # logging_info(f'boxes predicted: {box.xyxy}')
-#                 item_predicted = {
-#                     "boxes": box.xyxy,
-#                     "scores": box.conf,
-#                     "labels": torch.tensor(box.cls, dtype=torch.int),
-#                     }
-#                 new_predicteds.append(item_predicted)
-
-#         # logging_info(f'targets: {targets}')
-#         # logging_info(f'new_predicteds: {new_predicteds}')
-
-#         # setting target and predicted bounding boxes for metrics
-#         inference_metric.set_details_of_inferenced_image(
-#             filename_with_extension, targets, new_predicteds) 
-#         # inference_metric.target.extend(target)
-#         # inference_metric.preds.extend(new_predicteds)
-#         # logging_info(f'inference_metric.to_string: {inference_metric.to_string()}')
-#         # logging_info(f'--------------------------------------------------')
-
-#         # # Process results list
-#         # for result in results:
-#         #     logging_info(f'-'*50)
-#         #     logging_info(f'result: {result}')
-#         #     logging_info(f'result.boxes: {result.boxes}')
-#         #     logging_info(f'result.masks: {result.masks}')
-#         #     logging_info(f'result.probs: {result.probs}')
-#         #     boxes = result.boxes  # Boxes object for bounding box outputs
-#         #     masks = result.masks  # Masks object for segmentation masks outputs
-#         #     keypoints = result.keypoints  # Keypoints object for pose outputs
-#         #     probs = result.probs  # Probs object for classification outputs
-#         #     result.show()  # display to screen
-#         #     result.save(filename='result.jpg')  # save to disk
-
-
-#     # merging all image rsults to just one folder
-#     merge_image_results(parameters)
-
-#     # Computing Confusion Matrix 
-#     model_name = parameters['neural_network_model']['model_name']
-#     num_classes = parameters['neural_network_model']['number_of_classes'] + 1
-#     threshold = parameters['neural_network_model']['threshold']
-#     iou_threshold = parameters['neural_network_model']['iou_threshold_for_prediction']
-#     metrics_folder = parameters['test_results']['metrics_folder']
-#     running_id_text = parameters['processing']['running_id_text']
-#     tested_folder = parameters['test_results']['inferenced_image_folder']
-#     inference_metric.compute_confusion_matrix(model_name, num_classes, threshold, iou_threshold, 
-#                                               metrics_folder, running_id_text, tested_folder)
-#     inference_metric.confusion_matrix_to_string()
-
-#     # saving confusion matrix plots 
-#     title =  'Full Confusion Matrix' + \
-#              ' - Model: ' + parameters['neural_network_model']['model_name'] + \
-#              '   # images:' + str(inference_metric.confusion_matrix_summary['number_of_images'])
-#     title += LINE_FEED + \
-#              'Confidence threshold: ' + str(parameters['neural_network_model']['threshold']) + \
-#              '   IoU threshold: ' + str(parameters['neural_network_model']['iou_threshold_for_prediction']) + \
-#              '   Non-maximum Supression: ' + str(parameters['neural_network_model']['non_maximum_suppression'])
-#     # title += LINE_FEED + '  # bounding box -' + \
-#     #          ' predicted with target: ' + str(inference_metric.confusion_matrix_summary['number_of_bounding_boxes_predicted_with_target']) + \
-#     #          '   ghost predictions: ' + str(inference_metric.confusion_matrix_summary['number_of_ghost_predictions']) + \
-#     #          '   undetected objects: ' + str(inference_metric.confusion_matrix_summary['number_of_undetected_objects'])
-
-#     # logging_info(f'Bounding boxes target                : ' + \
-#     #              f'{self.confusion_matrix_summary["Numsey$2023number_of_bounding_boxes_target"]}')
-#     # logging_info(f'Bounding boxes predicted             : ' + \
-#     #              f'{self.confusion_matrix_summary["number_of_bounding_boxes_predicted"]}')
-#     # logging_info(f'Bounding boxes predicted with target : ' + \
-#     #              f'{self.confusion_matrix_summary["number_of_bounding_boxes_predicted_with_target"]}')
-#     # logging_info(f'Number of ghost preditions           : ' + \
-#     #              f'{self.confusion_matrix_summary["number_of_ghost_predictions"]}')
-#     # logging_info(f'Number of undetected objects         : ' + \
-#     #              f'{self.confusion_matrix_summary["number_of_undetected_objects"]}')
-
-#     path_and_filename = os.path.join(parameters['test_results']['metrics_folder'], 
-#         parameters['neural_network_model']['model_name'] + \
-#         '_' + parameters['processing']['running_id_text'] + '_confusion_matrix_full.png'
-#     )
-#     number_of_classes = parameters['neural_network_model']['number_of_classes']
-#     cm_classes = classes[0:(number_of_classes+1)]
-#     x_labels_names = cm_classes.copy()
-#     y_labels_names = cm_classes.copy()
-#     x_labels_names.append('Incorrect predictions')    
-#     y_labels_names.append('Undetected objects')
-#     format='.0f'
-#     Utils.save_plot_confusion_matrix(inference_metric.full_confusion_matrix, 
-#                                      path_and_filename, title, format,
-#                                      x_labels_names, y_labels_names)
-#     path_and_filename = os.path.join(
-#         parameters['test_results']['metrics_folder'], 
-#         parameters['neural_network_model']['model_name'] + \
-#         '_' + parameters['processing']['running_id_text'] + '_confusion_matrix_full.xlsx'
-#     )
-#     Utils.save_confusion_matrix_excel(inference_metric.full_confusion_matrix,
-#                                       path_and_filename, 
-#                                       x_labels_names, y_labels_names, 
-#                                       inference_metric.tp_per_class,
-#                                       inference_metric.fp_per_class,
-#                                       inference_metric.fn_per_class,
-#                                       inference_metric.tn_per_class
-#     )
-        
-#     # title = 'Confusion Matrix'
-#     # path_and_filename = os.path.join(parameters['test_results']['metrics_folder'],
-#     #     parameters['neural_network_model']['model_name'] + \
-#     #     '_' + parameters['processing']['running_id_text'] + '_confusion_matrix.png'
-#     # )
-#     # cm_classes = classes[1:5]
-#     # x_labels_names = cm_classes.copy()
-#     # y_labels_names = cm_classes.copy()
-#     # format='.0f'
-#     # Utils.save_plot_confusion_matrix(inference_metric.confusion_matrix, 
-#     #                                  path_and_filename, title, format,
-#     #                                  x_labels_names, y_labels_names)
-#     # path_and_filename = os.path.join(
-#     #     parameters['test_results']['metrics_folder'], 
-#     #     parameters['neural_network_model']['model_name'] + \
-#     #     '_' + parameters['processing']['running_id_text'] + '_confusion_matrix.xlsx'
-#     # )
-#     # Utils.save_confusion_matrix_excel(inference_metric.confusion_matrix,
-#     #                                   path_and_filename,
-#     #                                   x_labels_names, y_labels_names, 
-#     #                                   inference_metric.tp_per_class,
-#     #                                   inference_metric.fp_per_class,
-#     #                                   inference_metric.fn_per_class,
-#     #                                   inference_metric.tn_per_class
-#     # )
-
-#     title =  'Full Confusion Matrix Normalized' + \
-#              ' - Model: ' + parameters['neural_network_model']['model_name'] + \
-#              '   # images:' + str(inference_metric.confusion_matrix_summary['number_of_images'])
-#     title += LINE_FEED + \
-#              'Confidence threshold: ' + str(parameters['neural_network_model']['threshold']) + \
-#              '   IoU threshold: ' + str(parameters['neural_network_model']['iou_threshold_for_prediction']) + \
-#              '   Non-maximum Supression: ' + str(parameters['neural_network_model']['non_maximum_suppression'])
-#     # title += LINE_FEED + '  # bounding box -' + \
-#     #          ' predicted with target: ' + str(inference_metric.confusion_matrix_summary['number_of_bounding_boxes_predicted_with_target']) + \
-#     #          '   ghost predictions: ' + str(inference_metric.confusion_matrix_summary['number_of_ghost_predictions']) + \
-#     #          '   undetected objects: ' + str(inference_metric.confusion_matrix_summary['number_of_undetected_objects'])
-#     path_and_filename = os.path.join(
-#         parameters['test_results']['metrics_folder'], 
-#         parameters['neural_network_model']['model_name'] + \
-#         '_' + parameters['processing']['running_id_text'] + '_confusion_matrix_full_normalized.png'
-#     )
-#     cm_classes = classes[0:(number_of_classes+1)]
-#     x_labels_names = cm_classes.copy()
-#     y_labels_names = cm_classes.copy()
-#     x_labels_names.append('Incorrect prediction')    
-#     y_labels_names.append('Undetected objects')
-#     format='.2f'
-#     Utils.save_plot_confusion_matrix(inference_metric.full_confusion_matrix_normalized, 
-#                                      path_and_filename, title, format,
-#                                      x_labels_names, y_labels_names)
-#     path_and_filename = os.path.join(
-#         parameters['test_results']['metrics_folder'], 
-#         parameters['neural_network_model']['model_name'] + \
-#         '_' + parameters['processing']['running_id_text'] + '_confusion_matrix_full_normalized.xlsx'
-#     )
-#     Utils.save_confusion_matrix_excel(inference_metric.full_confusion_matrix_normalized,
-#                                       path_and_filename,
-#                                       x_labels_names, y_labels_names, 
-#                                       inference_metric.tp_per_class,
-#                                       inference_metric.fp_per_class,
-#                                       inference_metric.fn_per_class,
-#                                       inference_metric.tn_per_class
-#     )
-
-#     # title =  'Confusion Matrix Normalized' + \
-#     #          ' - Model: ' + parameters['neural_network_model']['model_name'] + \
-#     #          '   # images:' + str(inference_metric.confusion_matrix_summary['number_of_images'])
-#     # title += LINE_FEED + '  # bounding box -' + \
-#     #          ' predicted with target: ' + str(inference_metric.confusion_matrix_summary['number_of_bounding_boxes_predicted_with_target']) + \
-#     #          '   ghost predictions: ' + str(inference_metric.confusion_matrix_summary['number_of_ghost_predictions']) + \
-#     #          '   undetected objects: ' + str(inference_metric.confusion_matrix_summary['number_of_undetected_objects'])
-#     # path_and_filename = os.path.join(
-#     #     parameters['test_results']['metrics_folder'], 
-#     #     parameters['neural_network_model']['model_name'] + \
-#     #     '_' + parameters['processing']['running_id_text'] + '_confusion_matrix_normalized.png'
-#     # )
-#     # cm_classes = classes[1:5]
-#     # x_labels_names = cm_classes.copy()
-#     # y_labels_names = cm_classes.copy()
-#     # format='.2f'
-#     # Utils.save_plot_confusion_matrix(inference_metric.confusion_matrix_normalized, 
-#     #                                  path_and_filename, title, format,
-#     #                                  x_labels_names, y_labels_names)
-#     # path_and_filename = os.path.join(
-#     #     parameters['test_results']['metrics_folder'], 
-#     #     parameters['neural_network_model']['model_name'] + \
-#     #     '_' + parameters['processing']['running_id_text'] + '_confusion_matrix_normalized.xlsx'
-#     # )
-#     # Utils.save_confusion_matrix_excel(inference_metric.confusion_matrix_normalized,
-#     #                                   path_and_filename,
-#     #                                   x_labels_names, y_labels_names, 
-#     #                                   inference_metric.tp_per_class,
-#     #                                   inference_metric.fp_per_class,
-#     #                                   inference_metric.fn_per_class,
-#     #                                   inference_metric.tn_per_class
-#     # )
-
-
-#    # saving metrics from confusion matrix
-#     path_and_filename = os.path.join(
-#         parameters['test_results']['metrics_folder'],
-#         parameters['neural_network_model']['model_name'] + \
-#         '_' + parameters['processing']['running_id_text'] + '_confusion_matrix_metrics.xlsx'
-#     )
-    
-#     sheet_name='metrics_summary'
-#     sheet_list = []
-#     sheet_list.append(['Metrics Results calculated by application', ''])
-#     sheet_list.append(['', ''])
-#     sheet_list.append(['Model', f'{ parameters["neural_network_model"]["model_name"]}'])
-#     sheet_list.append(['', ''])
-#     sheet_list.append(['Threshold',  f"{parameters['neural_network_model']['threshold']:.2f}"])
-#     sheet_list.append(['IoU Threshold prediction',  f"{parameters['neural_network_model']['iou_threshold_for_prediction']:.2f}"])
-#     sheet_list.append(['IoU Threshold validation',  f"{parameters['neural_network_model']['iou_threshold_for_validation']:.2f}"])
-#     sheet_list.append(['Non-Maximum Supression',  f"{parameters['neural_network_model']['non_maximum_suppression']:.2f}"])
-#     sheet_list.append(['', ''])
-
-#     sheet_list.append(['TP / FP / FN per Class', ''])
-#     cm_classes = classes[1:(number_of_classes+1)]
-
-#     # setting values of TP, FP, FN, and TN per class
-#     sheet_list.append(['Class', 'TP', 'FP', 'FN', 'TN'])
-#     sheet_list.append(['Class', 'TP', 'FP', 'FN'])
-#     for i, class_name in enumerate(classes[1:5]):
-#         row = [class_name, 
-#                f'{inference_metric.tp_per_class[i]:.0f}',
-#                f'{inference_metric.fp_per_class[i]:.0f}',
-#                f'{inference_metric.fn_per_class[i]:.0f}',
-#                f'{inference_metric.tn_per_class[i]:.0f}',
-#               ]
-#         sheet_list.append(row)
-
-#     i += 1
-#     row = ['Total',
-#            f'{inference_metric.tp_model:.0f}',
-#            f'{inference_metric.fp_model:.0f}',
-#            f'{inference_metric.fn_model:.0f}',
-#            f'{inference_metric.tn_model:.0f}',
-#           ]
-#     sheet_list.append(row)    
-#     sheet_list.append(['', ''])
-
-#     # setting values of metrics precision, recall, f1-score and dice per class
-#     sheet_list.append(['Class', 'Accuracy', 'Precision', 'Recall', 'F1-Score', 'Dice'])
-#     for i, class_name in enumerate(classes[1:5]):
-#         row = [class_name, 
-#                f'{inference_metric.accuracy_per_class[i]:.8f}',
-#                f'{inference_metric.precision_per_class[i]:.8f}',
-#                f'{inference_metric.recall_per_class[i]:.8f}',
-#                f'{inference_metric.f1_score_per_class[i]:.8f}',
-#                f'{inference_metric.dice_per_class[i]:.8f}',
-#               ]
-#         sheet_list.append(row)
-
-#     i += 1
-#     row = ['Model Metrics',
-#                f'{inference_metric.get_model_accuracy():.8f}',
-#                f'{inference_metric.get_model_precision():.8f}',
-#                f'{inference_metric.get_model_recall():.8f}',
-#                f'{inference_metric.get_model_f1_score():.8f}',
-#                f'{inference_metric.get_model_dice():.8f}',
-#           ]
-#     sheet_list.append(row)
-#     sheet_list.append(['', ''])
-
-#     # metric measures 
-#     sheet_list.append(['Metric measures', ''])
-#     sheet_list.append(['number_of_images', f'{inference_metric.confusion_matrix_summary["number_of_images"]:.0f}'])
-#     sheet_list.append(['number_of_bounding_boxes_target', f'{inference_metric.confusion_matrix_summary["number_of_bounding_boxes_target"]:.0f}'])
-#     sheet_list.append(['number_of_bounding_boxes_predicted', f'{inference_metric.confusion_matrix_summary["number_of_bounding_boxes_predicted"]:.0f}'])
-#     sheet_list.append(['number_of_bounding_boxes_predicted_with_target', f'{inference_metric.confusion_matrix_summary["number_of_bounding_boxes_predicted_with_target"]:.0f}'])
-#     sheet_list.append(['number_of_incorrect_predictions', f'{inference_metric.confusion_matrix_summary["number_of_ghost_predictions"]:.0f}'])
-#     sheet_list.append(['number_of_undetected_objects', f'{inference_metric.confusion_matrix_summary["number_of_undetected_objects"]:.0f}'])    
-
-#     # saving metrics sheet
-#     Utils.save_metrics_excel(path_and_filename, sheet_name, sheet_list)
-#     logging_sheet(sheet_list)
-
-
-# def test_neural_network_model_ultralytics(parameters, device, model):
-#     '''
-#     Execute inference of the neural network model
-#     Confusion matrix of YOLOv8:
-#     - https://medium.com/@a0922/confusion-matrix-of-yolov8-97fd7ff0074e
-#     '''
-
-#     logging_info(f'')
-#     logging_info(f'Testing images using model val from Ultralytics')
-#     logging_info(f'')
-
-#     # getting classes 
-#     classes =  parameters['neural_network_model']['classes']
-
-#     # Run batched inference on a list of images   
-#     image_dataset_folder_test_images = os.path.join(
-#         parameters['processing']['image_dataset_folder_test'],
-#         'images',
-#     )
-#     image_dataset_folder_test_labels = os.path.join(
-#         parameters['processing']['image_dataset_folder_test'],
-#         'labels',
-#     )
-#     logging_info(f'Test image dataset folder: {image_dataset_folder_test_images}')
-#     logging_info(f'')
-
-#     # get list of all test images for inference 
-#     test_images = Utils.get_files_with_extensions(image_dataset_folder_test_images, '.jpg')
-#     test_images_with_path = []
-#     for test_image in test_images:
-#         test_image = os.path.join(
-#             image_dataset_folder_test_images,
-#             test_image
-#         )
-#         test_images_with_path.append(test_image)
-    
-#     data_file_yaml = os.path.join(
-#         parameters['processing']['research_root_folder'],
-#         parameters['processing']['project_name_folder'],
-#         parameters['processing']['yolo_v8_yaml_filename_test']
-#     )
-
-#     # running test in test image dataset by 'model.val' method
-#     metric_results = model.val(
-#         data=data_file_yaml, 
-#         imgsz=parameters['input']['input_dataset']['input_image_size'],
-#         project=parameters['test_results']['results_folder'],
-#         conf=parameters['neural_network_model']['threshold'],
-#         iou=parameters['neural_network_model']['iou_threshold_for_validation'],
-#         max_det=300,
-#         nms=True,
-#         device=device,
-#         verbose=True,
-#         show=False,
-#         save=True,
-#         save_conf=True,
-#         plots=True,    
-#         save_json=True,
-#         save_txt=True,
-#         save_crop=True,
-#         )
-
-#     # save_hybrid=True,
-#     # save_frames=True,
-#     # save_crop=False,        
-    
-#     logging_info(f'metric_results.box: {metric_results.box}')
-
-#     # setting class names
-#     number_of_classes = parameters['neural_network_model']['number_of_classes']
-#     cm_classes = classes[0:(number_of_classes+1)]
-#     x_labels_names = cm_classes.copy()
-#     y_labels_names = cm_classes.copy()
-#     x_labels_names.append('??background??')    
-#     y_labels_names.append('??background??')
-
-#     # saving confusion matrix 
-#     path_and_filename = os.path.join(
-#         parameters['test_results']['metrics_folder'], 
-#         parameters['neural_network_model']['model_name'] + '_' + \
-#         parameters['processing']['running_id_text'] + '_val_ultralytics_confusion_matrix_full.xlsx'
-#     )
-#     Utils.save_confusion_matrix_excel(metric_results.confusion_matrix.matrix,
-#                                       path_and_filename, 
-#                                       x_labels_names, y_labels_names, 
-#                                       [], [], [], []
-#     )
-                                      
-
-#     # logging_info(f'metric_results: {metric_results}')
-#     # logging_info(f'--------------------')
-#     # logging_info(f'metric_results.box: {metric_results.box}')
-#     # logging_info(f'--------------------')
-
-#     # saving metrics from confusion matrix
-#     path_and_filename = os.path.join(
-#         parameters['test_results']['metrics_folder'],        
-#         parameters['neural_network_model']['model_name'] + '_' + \
-#         parameters['processing']['running_id_text'] + '_val_ultralytics_confusion_matrix_metrics.xlsx'
-#     )
-#     sheet_name='summary_metrics'
-#     sheet_list = []
-#     sheet_list.append(['Metrics Results calculated by Ultralytics', ''])
-#     sheet_list.append(['', ''])
-#     sheet_list.append(['Model', f'{ parameters["neural_network_model"]["model_name"]}'])
-#     sheet_list.append(['', ''])
-
-#     # computing TP, FP from confusion matrix 
-#     logging_info(f'metric_results.confusion_matrix.tp_fp: {metric_results.confusion_matrix.tp_fp()}')
-#     tp_fp = metric_results.confusion_matrix.tp_fp()
-#     tp = tp_fp[0]
-#     tp_total = tp.sum()
-#     fp = tp_fp[1]
-#     fp_total = fp.sum()
-#     sheet_list.append(['TP_FP', tp_fp])
-#     sheet_list.append(['TP', tp])
-#     sheet_list.append(['FP', fp])
-#     sheet_list.append(['TP', f'{tp_total:.0f}'])
-#     sheet_list.append(['FP', f'{fp_total:.0f}'])
-#     sheet_list.append(['FN', f'{0:.0f}'])
-#     sheet_list.append(['TN', f'{0:.0f}'])
-#     sheet_list.append(['', ''])
-
-#     # computing f1-score 
-#     f1_score = np.mean(metric_results.box.f1)
-#     # logging_info(f'f1: {metric_results.box.f1}')
-#     # f1_score_computed = 2 * (metric_results.box.mp * metric_results.box.mr) / (metric_results.box.mp + metric_results.box.mr) 
-#     # logging_info(f'f1_score: {f1_score}')
-#     # logging_info(f'f1_score_computed: {f1_score_computed}')
-
-#     logging_info(f'metric_results.box: {metric_results.box}')
-
-#     # metric measures 
-#     sheet_list.append(['Metric measures', ''])
-#     sheet_list.append(['Accuracy', f'{0:.8f}'])
-#     sheet_list.append(['Precision', f'{ metric_results.box.mp:.8f}'])
-#     sheet_list.append(['Recall', f'{ metric_results.box.mr:.8f}'])
-#     sheet_list.append(['F1-score', f'{f1_score:.8f}'])
-#     sheet_list.append(['Dice', f'{0:.8f}'])
-#     sheet_list.append(['map', f'{metric_results.box.map:.8f}'])
-#     sheet_list.append(['map50', f'{metric_results.box.map50:.8f}'])
-#     sheet_list.append(['map75', f'{metric_results.box.map75:.8f}']) 
-#     sheet_list.append(['', ''])
-
-#     sheet_list.append(['Metric measures per class', ''])
-#     sheet_list.append(['', ''])
-#     sheet_list.append(['Class', 'Precision', 'Recall (Revocação)', 'F1-Score'])
-#     for i, class_index in enumerate(metric_results.box.ap_class_index):
-#         logging_info(f'rubens i: {i}  class_index: {class_index}')
-#         class_name = classes[class_index]
-#         sheet_list.append(
-#             [class_name, 
-#              f'{metric_results.box.p[i]:.8f}',
-#              f'{metric_results.box.r[i]:.8f}',
-#              f'{metric_results.box.f1[i]:.8f}', 
-#             ]
-#         )
-
-#     sheet_list.append(
-#         ['Model', 
-#          f'{metric_results.box.mp:.8f}',
-#          f'{metric_results.box.mr:.8f}',
-#          f'{f1_score:.8f}', 
-#         ]
-#     )
-
-#     # saving metrics sheet
-#     Utils.save_metrics_excel(path_and_filename, sheet_name, sheet_list)
-#     logging_sheet(sheet_list)
-       
-#     # logging_info(f'metric_results.box: {metric_results.box}')
-#     # logging_info(f'metric_results.confusion_matrix: {metric_results.confusion_matrix}')
-#     # logging_info(f'metric_results.confusion_matrix.matrix: {metric_results.confusion_matrix.matrix}')
-#     # logging_info(f'metric_results.confusion_matrix.tp_fp: {metric_results.confusion_matrix.tp_fp()}')
-#     # logging_info(f'metric_results.results_dict: {metric_results.results_dict}')
-#     # logging_info(f'=====================================================================')
-#     # logging_info(f'metric_results.box.map: {metric_results.box.map}')
-#     # logging_info(f'metric_results.box.mp: {metric_results.box.mp}')
-#     # logging_info(f'metric_results.box.mr: {metric_results.box.mr}')
-#     # logging_info(f'metric_results.box.map50: {metric_results.box.map50}')
-#     # logging_info(f'metric_results.box.map75: {metric_results.box.map75}')
-#     # logging_info(f'metric_results.box.maps: {metric_results.box.maps}')
-#     # logging_info(f'=====================================================================')
-#     # logging_info(f'metric_results: {metric_results}')
 
 # def copy_processing_files_to_log(parameters):
 #     input_path = os.path.join(
